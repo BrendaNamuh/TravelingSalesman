@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "cmdk": "^1.0.4",
+    "react-graph-vis": "^1.0.7"
+  }
+}
