@@ -1,12 +1,15 @@
 import math
 import random 
 import requests 
+GOOGLE_API_KEY = "AIzaSyBhzRSUol2dYgsnyjxixu7XIyQEqi4KaXY"
+
+CACHED_DURATIONS = {} # (org,dest):time
 
 # Input : Number of locations user would like to visit
 # Ouput: list of potential paths to visit all locations 
 def generate_random_paths(nmbr_destinations):
     random_paths = []
-    for _ in range(1, 20000):
+    for _ in range(1, 20):
         path = list(range(1,nmbr_destinations))
         random.shuffle(path)
         random_path = [0] +path
@@ -17,14 +20,30 @@ def generate_random_paths(nmbr_destinations):
 
 
 def total_distance(points, path):
-    origin = 'H7N 0C4'
-    destination = 'H7S 1Y9'
-    response = requests.get(f"https://maps.googleapis.com/maps/api/distancematrix/json?destinations={destination}&origins={origin}&units=imperial&key={GOOGLE_API_KEY}")
-    response = response.json()
-    print('Response:', response)
-    seconds = response['rows'][0]['elements'][0]['duration']['value']
-    print(seconds)
-    return sum(math.dist(points[path[i - 1]], points[path[i]]) for i in range(len(path)))
+    # origin = 'H7N 0C4'
+    # destination = 'H7S 1Y9'
+    duration_sum = 0
+    
+    
+    for i in path:
+
+        _,_,origin_postal_code = points[i-1]
+        _,_,destination_postal_code = points[i]
+        edge = (origin_postal_code,destination_postal_code)
+        if edge in CACHED_DURATIONS:
+            seconds = CACHED_DURATIONS[edge]
+        else:
+            response = requests.get(f"https://maps.googleapis.com/maps/api/distancematrix/json?destinations={destination_postal_code}&origins={origin_postal_code}&units=imperial&key={GOOGLE_API_KEY}")
+            response = response.json()
+            print('Response:', response)
+            seconds = response['rows'][0]['elements'][0]['duration']['value']
+            # Stores durations in cache
+            CACHED_DURATIONS[(origin_postal_code,destination_postal_code)] = seconds
+        
+        duration_sum += seconds
+        print(f'Duration between {(origin_postal_code,destination_postal_code)} is {seconds} ')
+    return duration_sum
+    #return sum(math.dist(points[path[i - 1]], points[path[i]]) for i in range(len(path)))
 
 
 def choose_survivors(points, old_generation):
@@ -99,6 +118,20 @@ def choose_random(paths, count):
     return [random.choice(paths) for _ in range(count)]
 
 def run_gen_algo(points):
+    # points = [
+    #       [1.22,3.244,H7N 0C4],
+    #       [1.22,3.244,H7N 3Y9],
+    #       [1.22,3.244,H7N 3U7],
+    #       ]
+    '''
+    population = [
+        [1,2,3],
+        [3,2,1],
+        [2,3,1],
+        ...   
+    ]
+    '''
+
     # Generate initial random paths
     num_destinations = len(points)
     population = generate_random_paths(num_destinations)

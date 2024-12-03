@@ -14,6 +14,7 @@ GOOGLE_API_KEY = "AIzaSyBhzRSUol2dYgsnyjxixu7XIyQEqi4KaXY"
 gmaps = googlemaps.Client(key=GOOGLE_API_KEY)
 
 GEOCODE_URL = "https://maps.googleapis.com/maps/api/geocode/json"
+LOCATIONS = []
 
 def mercator_projection(longitude, latitude):
     """
@@ -21,9 +22,9 @@ def mercator_projection(longitude, latitude):
     """
     longitude_rad = math.radians(longitude)
     latitude_rad = math.radians(latitude)
-    
     x = longitude_rad
     y = math.log(math.tan(math.pi / 4 + latitude_rad / 2))  # Mercator projection formula
+
     return x, y
 
 # Function to get latitude and longitude from postal code
@@ -150,8 +151,8 @@ fig.update_layout(
         linewidth=2,             # Axis line width
     ),
     plot_bgcolor='white',        # Background color
-    height=750,                  # 90% of the screen height (assuming 800px height)
-    width=1450,                  # 90% of the screen width (assuming 800px width)
+    height=550,                  # 90% of the screen height (assuming 800px height)
+    width=950,                  # 90% of the screen width (assuming 800px width)
     dragmode=False,              # Disable panning/zooming
     margin=dict(l=40, r=40, t=40, b=40)  # Ensure there's space around the plot
 )
@@ -190,12 +191,14 @@ app.layout = html.Div([
     Input('search-bar', 'value') # 
 )
 # This function is triggered when 'n_submit' or 'value' change
-def update_map(n_submit, value):
+def update_map(n_submit, postal_code):
     # If the user pressed Enter (n_submit), or there's a value in the search field
     if n_submit:
-        latitude, longitude = get_coordinates_from_postal_code(value)
+        latitude, longitude = get_coordinates_from_postal_code(postal_code)
+
 
         if latitude and longitude:
+            LOCATIONS.append([longitude,latitude,postal_code])
         
 
             # Process and update the graph (this is where you'd get new coordinates)
@@ -223,10 +226,10 @@ def update_map(n_submit, value):
 
             # Determine shortesT path
             if len(node_x) > 2:
-                points = zip(node_x,node_y)
-                points = [[x,y] for x,y in points]
-                print('WHAT IS BEING INPUTED TO GEN ALGO: ', points)
-                best_path_indices = run_gen_algo(points)
+                # points = zip(node_x,node_y)
+                # points = [[x,y] for x,y in points]
+                print('WHAT IS BEING INPUTED TO GEN ALGO: ', LOCATIONS)
+                best_path_indices = run_gen_algo(LOCATIONS)
                 bestpath_edge_x = [node_x[i] for i in best_path_indices]
                 bestpath_edge_y = [node_y[i] for i in best_path_indices]
                 print(f"Best Path X_EDGE: {bestpath_edge_x}")
@@ -260,7 +263,7 @@ def update_map(n_submit, value):
 
 # Run the app with auto-reload enabled
 if __name__ == '__main__':
-    # app.run_server(debug=True, use_reloader=True)
+    app.run_server(debug=True, use_reloader=True)
     # Staples: H7S 1Y9
     # Carrefour : H7T 1C7
     pass
