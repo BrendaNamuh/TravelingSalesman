@@ -101,13 +101,13 @@ def generate_new_population(points, old_generation):
     return new_population
 
 
-def choose_best(points, paths, count):
+def choose_best(points, paths):
 
     sorted_path_distances = sorted(paths, key=lambda path: total_distance(points, path))
-    print("Points: ", points)
-    print("Paths: ", paths)
-    print("Sorted Path distances: ", sorted_path_distances)
-    return sorted_path_distances[:count]
+    # print("Points: ", points)
+    # print("Paths: ", paths)
+    # print("Sorted Path distances: ", sorted_path_distances)
+    return sorted_path_distances[0], sorted_path_distances
 
 
 def choose_worst(points, paths, count):
@@ -142,12 +142,12 @@ def run_gen_algo(points):
         population = generate_new_population(points, population)
 
     # Choose the best path from the final population
-    best_path = choose_best(points, population, 1)[0]
+    best_path, sorted_paths = choose_best(points, population)
 
     # Print the best path and its distance
     print("Best path:", best_path)
     print("Total distance:", total_distance(points, best_path))
-    return best_path
+    return best_path, sorted_paths
 
 
 

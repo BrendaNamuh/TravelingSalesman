@@ -1,6 +1,6 @@
 import requests
 from dash import Dash, dcc, html, dash
-from dash.dependencies import Input, Output
+from dash.dependencies import Input, Output, State
 import plotly.graph_objects as go
 import math
 import googlemaps
@@ -171,6 +171,11 @@ app.layout = html.Div([
         ),
         html.Div(id='search-output', style={'padding': '10px'})
     ], style={'width': '80%', 'padding': '10px', 'margin': 'auto'}),
+
+     # Button to trigger the logic
+    html.Div([
+        html.Button('Run', id='run-button', n_clicks=0, style={'padding': '10px 20px', 'fontSize': 18})
+    ], style={'textAlign': 'center', 'padding': '20px'}),
     
     # Graph
     dcc.Graph(
@@ -179,6 +184,8 @@ app.layout = html.Div([
     )
 ])
 
+
+
 # Callback to listen for 'Enter' key press, send request to Google API, and update the map
 @app.callback(
     #callback function's output will update the 'figure' attribute of the network-graph component
@@ -186,12 +193,14 @@ app.layout = html.Div([
     
     #listens for changes to the n_submit property of the search-bar component. n_submit tracks nmbr of enters
     Input('search-bar', 'n_submit'), # events that trigger the callback
-    
+    Input('run-button', 'n_clicks'),
     # listens for changes to the value of the search bar
-    Input('search-bar', 'value') # 
+    #Input('search-bar', 'value') # 
+    State('search-bar', 'value')  # Callback can acess this var but is not triggered everytime it changes.
 )
+
 # This function is triggered when 'n_submit' or 'value' change
-def update_map(n_submit, postal_code):
+def update_map(n_submit, n_clicks ,postal_code):
     # If the user pressed Enter (n_submit), or there's a value in the search field
     if n_submit:
         latitude, longitude = get_coordinates_from_postal_code(postal_code)
@@ -225,26 +234,58 @@ def update_map(n_submit, postal_code):
             ))
 
             # Determine shortesT path
-            if len(node_x) > 2:
+            if len(node_x) > 2 and n_clicks:
                 # points = zip(node_x,node_y)
                 # points = [[x,y] for x,y in points]
                 print('WHAT IS BEING INPUTED TO GEN ALGO: ', LOCATIONS)
-                best_path_indices = run_gen_algo(LOCATIONS)
-                bestpath_edge_x = [node_x[i] for i in best_path_indices]
-                bestpath_edge_y = [node_y[i] for i in best_path_indices]
-                print(f"Best Path X_EDGE: {bestpath_edge_x}")
-                print(f"Best Path Y_EDGE: {bestpath_edge_y}")
+                best_path_indices,sorted_paths = run_gen_algo(LOCATIONS)
+                print(f"Sorted Paths: ",sorted_paths )
+                # bestpath_edge_x = [node_x[i] for i in best_path_indices]
+                # bestpath_edge_y = [node_y[i] for i in best_path_indices]
+                # print(f"Best Path X_EDGE: {bestpath_edge_x}")
+                # print(f"Best Path Y_EDGE: {bestpath_edge_y}")
 
 
                 # Add edges (lines between nodes)
-                fig.add_trace(go.Scatter(
-                    x=bestpath_edge_x, y=bestpath_edge_y,
-                    mode='lines',
-                    line=dict(width=2,  # width of lines
-                            color='#050A30'  # color of lines
-                            ),
-                    hoverinfo='none'
-                ))
+                # fig.add_trace(go.Scatter(
+                #     x=bestpath_edge_x, y=bestpath_edge_y,
+                #     mode='lines',
+                #     line=dict(width=2,  # width of lines
+                #             color='#050A30'  # color of lines
+                #             ),
+                #     hoverinfo='none'
+                # ))
+                # Create node_positions
+                node_positions = {}
+                for i in best_path_indices:
+                    x,y,postal = LOCATIONS[i]
+                    node_positions[postal] = (x,y)
+                
+                nodes = list(node_positions.items())
+                nmbr_nodes = len(node_positions)
+                # Remake the nodes
+                for i, (node, (x, y)) in enumerate(nodes):
+                    fig.add_trace(go.Scatter(
+                        x=[x], y=[y],
+                        mode='markers+text',
+                        marker=dict(size=10, color='blue'),
+                        text=[node],
+                        textposition='top center',
+                        name=node
+                    ))
+                    dest_i = i+1
+                    if dest_i == nmbr_nodes:
+                        dest_i = 0
+                    _, dest_coord = nodes[dest_i]
+                    dest_x, dest_y = dest_coord
+                    # Redraw the arrows
+                    # Add arrows (annotations) connecting nodes
+                    fig.add_annotation(
+                        x=x, y=y,
+                        ax=dest_x, ay=dest_y,
+                        axref="x", ayref="y", xref="x", yref="y",
+                        showarrow=True, arrowhead=3, arrowsize=1, arrowwidth=2
+                    )
 
 
 
