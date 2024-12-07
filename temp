@@ -1,0 +1,201 @@
+import requests
+from dash import Dash, dcc, html, dash
+from dash.dependencies import Input, Output, State
+import plotly.graph_objects as go
+import math
+import googlemaps
+from genetic_algorithm import run_gen_algo
+
+# Replace this with your Google API key
+GOOGLE_API_KEY = "AIzaSyBhzRSUol2dYgsnyjxixu7XIyQEqi4KaXY"
+gmaps = googlemaps.Client(key=GOOGLE_API_KEY)
+
+GEOCODE_URL = "https://maps.googleapis.com/maps/api/geocode/json"
+LOCATIONS = []
+
+def mercator_projection(longitude, latitude):
+    """
+    Convert geographic coordinates (longitude, latitude) to Mercator projection coordinates (x, y).
+    """
+    longitude_rad = math.radians(longitude)
+    latitude_rad = math.radians(latitude)
+    x = longitude_rad
+    y = math.log(math.tan(math.pi / 4 + latitude_rad / 2))  # Mercator projection formula
+
+    return x, y
+
+def display_path(best_path_indices, fig):          
+    # Create node_positions
+    node_positions = {}
+    for i in best_path_indices:
+        x, y, postal = LOCATIONS[i]
+        node_positions[postal] = (x, y)
+    
+    nodes = list(node_positions.items())
+    nmbr_nodes = len(node_positions)
+    
+    # Remake the nodes
+    for i, (node, (x, y)) in enumerate(nodes):
+        fig.add_trace(go.Scatter(
+            x=[x], y=[y],
+            mode='markers+text',
+            marker=dict(size=10, color='blue'),
+            text=[node],
+            textposition='top center',
+            name=node
+        ))
+
+        dest_i = i + 1
+        if dest_i == nmbr_nodes:
+            dest_i = 0
+        _, dest_coord = nodes[dest_i]
+        dest_x, dest_y = dest_coord
+        
+        # Redraw the arrows
+        fig.add_annotation(
+            x=x, y=y,
+            ax=dest_x, ay=dest_y,
+            axref="x", ayref="y", xref="x", yref="y",
+            showarrow=True, arrowhead=3, arrowsize=1, arrowwidth=2
+        )
+
+# Initialize locations and other data
+locations = [
+    ((79.3871, 43.6426), 'CN Tower'),  # CN Tower
+    ((79.1854, 43.7715), 'Toronto Zoo')  # Toronto Zoo
+]
+
+app = Dash(__name__)
+
+# State variables for node data
+node_x = []
+node_y = []
+node_labels = []  # To store node labels for search filtering
+
+def create_nodes(locations):
+    global node_x, node_y, node_labels
+    for location, label in locations: 
+        longitude, latitude = location
+        x, y = mercator_projection(longitude, latitude)
+        node_x.append(x)
+        node_y.append(y)
+        node_labels.append(label)
+    return node_x, node_y, node_labels
+
+# Global state to track the path index
+current_index = 0
+
+# Create the Plotly figure
+fig = go.Figure()
+
+# Add edges (lines between nodes)
+fig.add_trace(go.Scatter(
+    x=node_x, y=node_y,
+    mode='lines',
+    line=dict(width=2, color='#050A30'),
+    hoverinfo='none'
+))
+
+# Add nodes (points)
+fig.add_trace(go.Scatter(
+    x=node_x, y=node_y,
+    mode='markers',
+    marker=dict(size=10, color='#7EC8E3'),
+    text=node_labels,
+    hoverinfo='text'
+))
+
+# Set up the Dash layout
+app.layout = html.Div([
+    html.Div([
+        dcc.Input(
+            id='search-bar',
+            type='text',
+            placeholder='Enter postal code...',
+            debounce=True,
+            value='',
+            style={'width': '100%', 'padding': '10px'}
+        ),
+        html.Div(id='search-output', style={'padding': '10px'})
+    ], style={'width': '80%', 'padding': '10px', 'margin': 'auto'}),
+
+    # Button to trigger the logic
+    html.Div([
+        html.Button('Run', id='run-button', n_clicks=0, style={'padding': '10px 20px', 'fontSize': 18})
+    ], style={'textAlign': 'center', 'padding': '20px'}),
+
+    # Interval to trigger updates every 500ms
+    dcc.Interval(
+        id='interval-component',
+        interval=1000,  # 500 ms interval
+        n_intervals=0,
+        disabled=True  # Initially disabled
+    ),
+
+    # Graph
+    dcc.Graph(
+        id='network-graph',
+        figure=fig
+    )
+])
+
+@app.callback(
+    Output('network-graph', 'figure'),
+    Output('interval-component', 'disabled'),
+    Input('run-button', 'n_clicks'),
+    State('search-bar', 'value')
+)
+def update_map(n_clicks, postal_code):
+    global current_index
+    if n_clicks > 0 and postal_code:
+        latitude, longitude = get_coordinates_from_postal_code(postal_code)
+        if latitude and longitude:
+            LOCATIONS.append([longitude, latitude, postal_code])
+
+            # Update the figure
+            fig = go.Figure()
+
+            node_x.append(longitude)
+            node_y.append(latitude)
+            fig.add_trace(go.Scatter(
+                x=node_x, y=node_y,
+                mode='markers',
+                marker=dict(size=10, color='#7EC8E3'),
+                text=node_labels,
+                hoverinfo='text'
+            ))
+
+            # Generate paths (ensure you return sorted_paths and best_path_indices)
+            best_path_indices, sorted_paths = run_gen_algo(LOCATIONS)
+            
+            # Initialize figure with nodes and edges
+            for path in sorted_paths:
+                display_path(path, fig)
+
+            # Enable the interval and reset the current index
+            current_index = 0
+            return fig, False  # Disable the interval initially
+
+    return dash.no_update, dash.no_update
+
+@app.callback(
+    Output('network-graph', 'figure'),
+    Input('interval-component', 'n_intervals')
+)
+def update_progressive(n_intervals):
+    global current_index
+    if current_index < len(sorted_paths):
+        fig = go.Figure()
+        
+        # Add nodes and edges
+        for path in sorted_paths[:current_index + 1]:
+            display_path(path, fig)
+        
+        current_index += 1  # Move to the next path
+        
+        return fig  # Return updated figure
+
+    return dash.no_update  # No further update
+
+if __name__ == '__main__':
+    app.run_server(debug=True)

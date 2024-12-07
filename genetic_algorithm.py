@@ -103,11 +103,11 @@ def generate_new_population(points, old_generation):
 
 def choose_best(points, paths):
 
-    sorted_path_distances = sorted(paths, key=lambda path: total_distance(points, path))
+    sorted_path_distances = sorted(paths,reverse=True, key=lambda path: total_distance(points, path))
     # print("Points: ", points)
     # print("Paths: ", paths)
     # print("Sorted Path distances: ", sorted_path_distances)
-    return sorted_path_distances[0], sorted_path_distances
+    return sorted_path_distances[-1], sorted_path_distances
 
 
 def choose_worst(points, paths, count):

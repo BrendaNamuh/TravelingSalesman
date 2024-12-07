@@ -5,7 +5,7 @@ import plotly.graph_objects as go
 import math
 import googlemaps
 from genetic_algorithm import run_gen_algo 
-
+import time
 
 
 
@@ -87,6 +87,40 @@ def create_nodes(locations):
         node_labels.append(label)
     return node_x, node_y, node_labels
 
+
+
+def display_path(best_path_indices, fig):          
+    # Create node_positions
+    node_positions = {}
+    for i in best_path_indices:
+        x,y,postal = LOCATIONS[i]
+        node_positions[postal] = (x,y)
+    
+    nodes = list(node_positions.items())
+    nmbr_nodes = len(node_positions)
+    # Remake the nodes
+    for i, (node, (x, y)) in enumerate(nodes):
+        fig.add_trace(go.Scatter(
+            x=[x], y=[y],
+            mode='markers+text',
+            marker=dict(size=10, color='blue'),
+            text=[node],
+            textposition='top center',
+            name=node
+        ))
+        dest_i = i+1
+        if dest_i == nmbr_nodes:
+            dest_i = 0
+        _, dest_coord = nodes[dest_i]
+        dest_x, dest_y = dest_coord
+        # Redraw the arrows
+        # Add arrows (annotations) connecting nodes
+        fig.add_annotation(
+            x=x, y=y,
+            ax=dest_x, ay=dest_y,
+            axref="x", ayref="y", xref="x", yref="y",
+            showarrow=True, arrowhead=3, arrowsize=1, arrowwidth=2
+        )
 # node_x, node_y, node_labels = create_nodes(locations)
 
 # Define the edges (connections between nodes)
@@ -177,6 +211,13 @@ app.layout = html.Div([
         html.Button('Run', id='run-button', n_clicks=0, style={'padding': '10px 20px', 'fontSize': 18})
     ], style={'textAlign': 'center', 'padding': '20px'}),
     
+        # Interval to trigger updates every 500ms
+    dcc.Interval(
+        id='interval-component',
+        interval=1000,  # 500 ms interval
+        n_intervals=0,
+        disabled=True  # Initially disabled
+    ),
     # Graph
     dcc.Graph(
         id='network-graph',
@@ -235,6 +276,7 @@ def update_map(n_submit, n_clicks ,postal_code):
 
             # Determine shortesT path
             if len(node_x) > 2 and n_clicks:
+                print('Run Button is pressed!')
                 # points = zip(node_x,node_y)
                 # points = [[x,y] for x,y in points]
                 print('WHAT IS BEING INPUTED TO GEN ALGO: ', LOCATIONS)
@@ -244,50 +286,8 @@ def update_map(n_submit, n_clicks ,postal_code):
                 # bestpath_edge_y = [node_y[i] for i in best_path_indices]
                 # print(f"Best Path X_EDGE: {bestpath_edge_x}")
                 # print(f"Best Path Y_EDGE: {bestpath_edge_y}")
-
-
-                # Add edges (lines between nodes)
-                # fig.add_trace(go.Scatter(
-                #     x=bestpath_edge_x, y=bestpath_edge_y,
-                #     mode='lines',
-                #     line=dict(width=2,  # width of lines
-                #             color='#050A30'  # color of lines
-                #             ),
-                #     hoverinfo='none'
-                # ))
-                # Create node_positions
-                node_positions = {}
-                for i in best_path_indices:
-                    x,y,postal = LOCATIONS[i]
-                    node_positions[postal] = (x,y)
-                
-                nodes = list(node_positions.items())
-                nmbr_nodes = len(node_positions)
-                # Remake the nodes
-                for i, (node, (x, y)) in enumerate(nodes):
-                    fig.add_trace(go.Scatter(
-                        x=[x], y=[y],
-                        mode='markers+text',
-                        marker=dict(size=10, color='blue'),
-                        text=[node],
-                        textposition='top center',
-                        name=node
-                    ))
-                    dest_i = i+1
-                    if dest_i == nmbr_nodes:
-                        dest_i = 0
-                    _, dest_coord = nodes[dest_i]
-                    dest_x, dest_y = dest_coord
-                    # Redraw the arrows
-                    # Add arrows (annotations) connecting nodes
-                    fig.add_annotation(
-                        x=x, y=y,
-                        ax=dest_x, ay=dest_y,
-                        axref="x", ayref="y", xref="x", yref="y",
-                        showarrow=True, arrowhead=3, arrowsize=1, arrowwidth=2
-                    )
-
-
+                for path in (sorted_paths):
+                    display_path(path,fig)
 
 
             # Update layout as needed
@@ -301,6 +301,8 @@ def update_map(n_submit, n_clicks ,postal_code):
 
     # Return the same figure if no update is needed
     return dash.no_update
+
+
 
 # Run the app with auto-reload enabled
 if __name__ == '__main__':
