@@ -41,7 +41,7 @@ def total_distance(points, path):
             CACHED_DURATIONS[(origin_postal_code,destination_postal_code)] = seconds
         
         duration_sum += seconds
-        print(f'Duration between {(origin_postal_code,destination_postal_code)} is {seconds} ')
+        #print(f'Duration between {(origin_postal_code,destination_postal_code)} is {seconds} ')
     return duration_sum
     #return sum(math.dist(points[path[i - 1]], points[path[i]]) for i in range(len(path)))
 
@@ -55,7 +55,7 @@ def choose_survivors(points, old_generation):
             survivors.append(old_generation[i])
         else:
             survivors.append(old_generation[i + midway])
-    print(f'These are the survivors: {survivors}')
+    #print(f'These are the survivors: {survivors}')
     return survivors
 
 
@@ -102,11 +102,11 @@ def generate_new_population(points, old_generation):
 
 
 def choose_best(points, paths):
-
+    print('Paths before sorting: ', paths)
     sorted_path_distances = sorted(paths,reverse=True, key=lambda path: total_distance(points, path))
     # print("Points: ", points)
     # print("Paths: ", paths)
-    # print("Sorted Path distances: ", sorted_path_distances)
+    print("Sorted Path distances: ", sorted_path_distances)
     return sorted_path_distances[-1], sorted_path_distances
 
 
@@ -135,7 +135,7 @@ def run_gen_algo(points):
     # Generate initial random paths
     num_destinations = len(points)
     population = generate_random_paths(num_destinations)
-    
+    initial_populations = generate_random_paths(num_destinations)
     # Run the genetic algorithm for some generations
     generations = 1000
     for _ in range(generations):
@@ -143,20 +143,20 @@ def run_gen_algo(points):
 
     # Choose the best path from the final population
     best_path, sorted_paths = choose_best(points, population)
+    #unique_sorted_paths = [list(x) for x in set(tuple(path) for path in sorted_paths)]
+    journey = initial_populations + sorted_paths
 
     # Print the best path and its distance
     print("Best path:", best_path)
     print("Total distance:", total_distance(points, best_path))
-    return best_path, sorted_paths
-
-
+    return journey
 
 
 if __name__ == '__main__':
-    print('Determining Best Path Using Genetic Algorithem ...')
+    print('Determining Best Path Using Genetic Algorithm ...')
     
     # Example list of coordinates (x, y)
-    points = [[0, 0], [1, 2], [3, 1], [4, 4], [5, 6]]
+    points = [[0, 0,'h7n'], [1, 2,'j'], [3, 1,'f'], [4, 4,'e'], [5, 6,'w']]
     run_gen_algo(points)
     
     
