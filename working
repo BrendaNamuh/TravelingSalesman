@@ -1,0 +1,205 @@
+import numpy as np
+import plotly.graph_objects as go
+from dash import Dash, dcc, html, Input, Output
+import random
+
+# Create the Dash app
+app = Dash(__name__)
+
+# A dictionary to map locations to (x, y) coordinates
+location_dict = {
+    "Location A": (0.1, 0.3),
+    "Location B": (0.3, 0.5),
+    "Location C": (0.5, 0.7),
+    "Location D": (0.7, 0.9),
+    "Location E": (0.9, 0.1)
+}
+
+# Initial empty lists for nodes and edges
+node_x = []
+node_y = []
+node_labels = []
+
+# Predefined list of edges (paths between nodes)
+# These represent different ways of connecting the nodes, to animate through
+predefined_edges = [
+    ("Location A", "Location B"),
+    ("Location B", "Location C"),
+    ("Location C", "Location D"),
+    ("Location D", "Location E"),
+    ("Location E", "Location A")
+]
+
+# Create a function to add nodes
+def add_node(location):
+    if location in location_dict and location not in node_labels:
+        x, y = location_dict[location]
+        node_x.append(x)
+        node_y.append(y)
+        node_labels.append(location)
+        return True
+    return False
+
+# Create the node trace (dynamic, based on nodes added)
+def create_node_trace():
+    return go.Scatter(
+        x=node_x,
+        y=node_y,
+        mode='markers+text',
+        marker=dict(
+            showscale=False,
+            colorscale='YlGnBu',
+            size=15,
+            color=np.random.randn(len(node_x)),
+        ),
+        text=node_labels,  # Node labels
+        textposition="bottom center",
+    )
+
+# Create edge trace (arrows between nodes)
+def create_edge_trace(edges_subset):
+    edge_x = []
+    edge_y = []
+    annotations = []  # List to hold annotations for arrows
+
+    # Loop through the predefined edges and create lines (arrows)
+    for start, end in edges_subset:
+        x0, y0 = location_dict[start]
+        x1, y1 = location_dict[end]
+        
+        edge_x.extend([x0, x1])
+        edge_y.extend([y0, y1])
+        
+        annotations.append(dict(
+            x=x1, y=y1,
+            ax=x0, ay=y0,
+            axref="x", ayref="y",
+            xref="x", yref="y",
+            showarrow=True,
+            arrowhead=3,
+            arrowsize=2,
+            arrowcolor='blue'
+        ))
+
+    return go.Scatter(
+        x=edge_x, 
+        y=edge_y,
+        mode='lines',
+        line=dict(width=2, color='blue'),
+        hoverinfo='none'
+    ), annotations
+
+# Initial figure
+fig = go.Figure()
+
+# Define the layout for Dash with search bar and play button
+app.layout = html.Div([
+    html.H1("Interactive Location Path Animation", style={'textAlign': 'center'}),
+    
+    # Search Bar
+    html.Div([
+        dcc.Input(
+            id='search-bar',
+            type='text',
+            placeholder='Enter a location...',
+            debounce=True,
+            value='',
+            style={'width': '80%', 'padding': '10px'}
+        ),
+        html.Div(id='search-output', style={'padding': '10px'})
+    ], style={'width': '80%', 'padding': '10px', 'margin': 'auto'}),
+    
+    # Button to trigger animation
+    html.Div([
+        html.Button('Play', id='play-button', n_clicks=0, style={'padding': '10px 20px', 'fontSize': 18})
+    ], style={'textAlign': 'center', 'padding': '20px'}),
+    
+    # Graph component
+    dcc.Graph(
+        id='network-graph',
+        figure=fig
+    ),
+])
+
+# Define a single callback to handle search bar and play button
+@app.callback(
+    [Output('network-graph', 'figure'),
+     Output('search-output', 'children')],
+    [Input('search-bar', 'value'),
+     Input('play-button', 'n_clicks')]
+)
+def update_graph(value, n_clicks):
+    # Handle location search and addition
+    message = ""
+    if value:
+        added = add_node(value)
+        if added:
+            message = f"Location '{value}' added to the graph."
+        else:
+            message = f"Location '{value}' not found or already added."
+    else:
+        message = "Please enter a location."
+
+    # Create node trace
+    node_trace = create_node_trace()
+
+    # If play button is clicked, animate the edges
+    frames = []
+    if n_clicks > 0:
+        for i in range(1, len(predefined_edges) + 1):
+            edges_subset = predefined_edges[:i]
+            edge_trace, annotations = create_edge_trace(edges_subset)
+
+            # Add edges progressively as frames
+            frames.append(go.Frame(
+                data=[node_trace, edge_trace],
+                layout=go.Layout(
+                    annotations=annotations,
+                    title=f"Frame {i}"
+                ),
+                name=f'Frame {i}'
+            ))
+
+        # Create the final figure with frames and animation settings
+        updated_fig = go.Figure(
+            data=[create_node_trace()],
+            layout=go.Layout(
+                title="Interactive Location Path Animation",
+                xaxis=dict(range=[-0.2, 1.2]),
+                yaxis=dict(range=[-0.2, 1.2]),
+                showlegend=False,
+                hovermode='closest',
+                updatemenus=[{
+                    'buttons': [
+                        {
+                            'args': [None, {'frame': {'duration': 1000, 'redraw': True}, 'fromcurrent': True}],
+                            'label': 'Play',
+                            'method': 'animate',
+                        },
+                        {
+                            'args': [[None], {'frame': {'duration': 0, 'redraw': True}, 'mode': 'immediate', 'transition': {'duration': 0}}],
+                            'label': 'Pause',
+                            'method': 'animate',
+                        },
+                    ],
+                    'direction': 'left',
+                    'pad': {'r': 10, 't': 87},
+                    'showactive': False,
+                    'type': 'buttons',
+                    'x': 0.1,
+                    'xanchor': 'right',
+                    'y': 0,
+                    'yanchor': 'top',
+                }],
+            ),
+            frames=frames
+        )
+    else:
+        # If no play button click, return a static figure
+        updated_fig = go.Figure(data=[create_node_trace()])
+
+    return updated_fig, message
+
+# Run the app
+if __name__ == '__main__':
+    app.run_server(debug=True)

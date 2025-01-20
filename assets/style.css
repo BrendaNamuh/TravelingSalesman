@@ -1,0 +1,12 @@
+body, html {
+    background-color: #f0f0f0; /* Replace with BACKGROUND_COLOUR */
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    width: 100%;
+    position: relative;
+    font-family: 'Montserrat', sans-serif;
+    color:black;
+    
+    
+}

@@ -1,38 +1,24 @@
-
-import requests
-from dash import Dash, dcc, html, dash
-from dash.dependencies import Input, Output, State
+from dash import Dash, dcc, html, dash,  Input, Output
 import plotly.graph_objects as go
-import math
 import googlemaps
 from genetic_algorithm import run_gen_algo 
-import plotly.graph_objects as go
-import networkx as nx
-import numpy as np
-from genetic_algorithm import *
+import googlemaps
 
-
-
+BACKGROUND_COLOUR = '#ffffff'
 # Replace this with your Google API key
 GOOGLE_API_KEY = "AIzaSyBhzRSUol2dYgsnyjxixu7XIyQEqi4KaXY"
-import numpy as np
-import plotly.graph_objects as go
-from dash import Dash, dcc, html, Input, Output
-import random
-import googlemaps
-import math
 
-# Initialize the Dash app
-app = Dash(__name__)
 
 # Google Maps API client
 gmaps = googlemaps.Client(key=GOOGLE_API_KEY)
 LOCATIONS = []
+POSTAL_CODES = []
 
 # Initial empty lists for nodes and edges
 node_x = []
 node_y = []
 node_labels = []
+
 
 # Function to get latitude and longitude from postal code
 def get_coordinates_from_postal_code(postal_code):
@@ -46,7 +32,8 @@ def get_coordinates_from_postal_code(postal_code):
 # Create a function to add nodes dynamically based on postal code
 def add_node(postal_code):
     latitude, longitude = get_coordinates_from_postal_code(postal_code)
-    if latitude and longitude:
+    if latitude and longitude and postal_code not in POSTAL_CODES:
+        POSTAL_CODES.append(postal_code)
         LOCATIONS.append([longitude,latitude,postal_code])
         node_x.append(longitude)
         node_y.append(latitude)
@@ -67,8 +54,8 @@ def create_node_trace():
         y=node_y,
         mode='markers+text',
         marker=dict(
-
-            size=15,
+            symbol='star', # square, star, cross
+            size=10,
             color= node_colors,
         ),
         text=node_labels,  # Node labels
@@ -102,7 +89,7 @@ def create_edge_trace(path):
             showarrow=True,
             arrowhead=3,  # Arrowhead style
             arrowsize=2,
-            arrowcolor='blue'
+            arrowcolor='black'
         ))
     
     return go.Scatter(
@@ -113,74 +100,90 @@ def create_edge_trace(path):
         hoverinfo='none'
     ), annotations
 
-import dash
-from dash import dcc, html, Input, Output
-import plotly.graph_objs as go
-import time
 
 # Initialize the app
 app = dash.Dash(__name__)
+
 
 # Create an empty figure for initial setup
 fig = go.Figure(
     data=[],
     layout=go.Layout(
+          xaxis=dict(
+                    title='Longitude',  # Title of the X-axis
+                    titlefont=dict(
+                        size=14,  
+                        family='Montserrat',  
+                        color='black'  
+                    ),
+                     showgrid=True,
+                    gridcolor='#cb58fc',
+                    gridwidth=0.2,
+                ),
+                yaxis=dict(
+                    title='Latitude',  # Title of the Y-axis
+                    titlefont=dict(
+                        size=14,  
+                        family='Montserrat', 
+                        color='black' 
+                    ),
+                     showgrid=True,
+                    gridcolor='#cb58fc',
+                    gridwidth=0.2,
+                ),
         updatemenus=[{
             'buttons': [
                 # Initially no buttons for play/pause in the Plotly layout
             ],
-            'direction': 'left',
-            'pad': {'r': 10, 't': 87},
-            'showactive': False,
-            'type': 'buttons',
-            'x': 0.1,
-            'xanchor': 'right',
-            'y': 0,
-            'yanchor': 'top',
+           
         }],
+        plot_bgcolor=BACKGROUND_COLOUR, 
+        paper_bgcolor=BACKGROUND_COLOUR,  
+        height = 720
+        
     ),
     frames=[]
 )
 
+
+
+
 # Define the layout for Dash
 app.layout = html.Div([
-    html.H1("Interactive Location Path Animation", style={'textAlign': 'center','border':'solid 2px black','width':'fit-content',}),
-    
+      # Link to Google Fonts (example: Roboto font)
+    html.Link(
+        href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;700&display=swap", 
+        rel="stylesheet"
+    ),
+   
+    html.H1("GenePath - Evolving the Shortest Route", style={'textAlign': 'center','border':'solid 2px transparent','width':'fit-content','z-index': '2','position':'absolute','margin-left':'5%'}),
+    html.P("Find the shortest route using a genetic algorithm. (Note: The red star is the departing location)", style={'width':'20%','textAlign': 'center','border':'solid 2px transparent','width':'fit-content','z-index': '2','position':'absolute','margin-left':'5%','top':'7%','font-weight':'2em',}),
+    # Text beneath
+    html.Div(id='search-output', style={'padding': '10px','border':'solid transparent 2px','position':'absolute','bottom':'-10px','z-index':'2','left':'50%','transform':'translate(-50%,-50%)'}),
     # Search Bar
     html.Div([
         #Search Bar
         dcc.Input(
             id='search-bar',
             type='text',
-            placeholder='Enter a location...',
+            placeholder='Enter a postal code',
             debounce=True,
             value='',
-            style={'width': '80%', 'padding': '10px','border':'solid black 2px'}
+            style={'width': '40%','border':'solid black 2px', 'margin-left':'100px','padding': '10px','border':'solid black 1px', 'background':BACKGROUND_COLOUR}
         ),
-        # Text beneath
-        html.Div(id='search-output', style={'padding': '10px','border':'solid black 2px'})
+        
         # Wrapper for whole 
-    ], style={'width': '30%', 'padding': '10px','border':'solid black 2px',}),
+    ], style={'width': '20%', 'padding': '10px','border':'solid transparent 2px','background':BACKGROUND_COLOUR,'z-index':'2','right':'0px','margin-top':'15px','position':'absolute'}),
     
-    # Play Button for controlling animation //turn it into reset
-    # html.Div([
-    #     html.Button('Play', id='play-button', n_clicks=0, style={'padding': '5px 60px', 'fontSize': 18})
-    # ], style={
-    #     'position': 'absolute',
-    #     'z-index': '3',
-    #     'bottom': '5px',
-    #     'left': '70px',
-    #     'textAlign': 'left',
-    #     'padding': '20px'
-    # }),
 
     # Graph component
     dcc.Graph(
         id='network-graph',
         figure=fig,
-        style={'height': '700px'}
+        style={'height': '720px','width':'101%','position': 'absolute', 'top':'3%','z-index': '1'},
+        config={'staticPlot':True, }
     ),
-])
+], style={'background':BACKGROUND_COLOUR,'height':'100vh','width':'100vw'})
 
 
 
@@ -197,14 +200,15 @@ app.layout = html.Div([
 def update_graph(value,relayoutData):
     print(f'Callback Running.\nValue: {value}\nRelayoutData: {relayoutData}')
     message = ""
+    value = value.upper().replace(" ", "")
     if value:
         added = add_node(value)
         if added:
-            message = f"Location '{value}' added to the graph."
+            message = f"Location '{value}' added."
         else:
             message = f"Location '{value}' not found or already added."
     else:
-        message = "Please enter a location."
+        message = ""
 
     # Create node trace
     node_trace = create_node_trace()
@@ -212,26 +216,57 @@ def update_graph(value,relayoutData):
     # Create edge trace
     frames = []
     
-    
+    # 'Find path' is clicked and the requirement to exexecute the gen. algo is satisfied
     if relayoutData and len(node_y)>1:
         sorted_paths = run_gen_algo(LOCATIONS)
         #sorted_paths = [[0, 3, 1, 2], [2, 1, 3, 0], [0, 1, 2, 3]]
         print('sorted_paths: ',sorted_paths)
         print(LOCATIONS)
+
         for path in sorted_paths:
             print('Current Path: ', path)
-            postal_path = [LOCATIONS[pos][2] for pos in path]
             # edges_subset = predefined_edges[:i]
             edge_trace, annotations = create_edge_trace(path)
             print('Edge Trace X:', edge_trace['x'])
             print('Edge Trace Y:', edge_trace['y'])
-
+            postal_path = [LOCATIONS[pos][2] for pos in path]
+            postal_path = ' --> '.join(postal_path)
             # Add edges progressively as frames
             frames.append(go.Frame(
                 data=[node_trace,edge_trace],
                 layout=go.Layout(
+                      xaxis=dict(
+                            title='Longitude',  # Title of the X-axis
+                            titlefont=dict(
+                                size=14,  
+                                family='Montserrat',  
+                                color='black'  
+                            ),
+                             showgrid=True,
+                            gridcolor='#cb58fc',
+                            gridwidth=0.2,
+                        ),
+                        yaxis=dict(
+                            title='Latitude',  # Title of the Y-axis
+                            titlefont=dict(
+                                size=14,  
+                                family='Montserrat', 
+                                color='black' 
+                            ),
+                             showgrid=True,
+                    gridcolor='#cb58fc',
+                    gridwidth=0.2,
+                        ),
                     annotations=annotations,
-                    title=f"Frame {postal_path} "
+                    title=f"Shortest Path: {postal_path} ",
+                     title_x=0.05,  # Centered horizontally
+                     title_y=0.88,  # Close to the top
+                     title_font=dict(  # Custom font settings for the title
+                        family='Montserrat',  # Font family (you can choose other fonts like 'Verdana', 'Courier', etc.)
+                        size=14,  # Font size (increase for larger text)
+                        color='black',  # Font color (you can use any color code like 'rgb(255, 0, 0)', or a named color)
+                    )
+                    
                 ),
                 # name=f'Frame {i}'
             ))
@@ -244,73 +279,140 @@ def update_graph(value,relayoutData):
         updated_fig = go.Figure(
             data=[node_trace],
             layout=go.Layout(
-                updatemenus=[{
-                    'buttons': [
-                        {
-                            'args': [None, {'frame': {'duration': 100, 'redraw': True}, 'fromcurrent': True}],
-                            'label': 'Play',
-                            'method': 'animate',
-                        },
-                        {
-                            'args': [[None], {'frame': {'duration': 0, 'redraw': True}, 'mode': 'immediate', 'transition': {'duration': 0}}],
-                            'label': 'Pause',
-                            'method': 'animate',
-                        },
-                    ],
-                    'direction': 'left',
-                    'pad': {'r': 10, 't': 87},
-                    'showactive': False,
-                    'type': 'buttons',
-                    'x': 0.1,
-                    'xanchor': 'right',
-                    'y': 0,
-                    'yanchor': 'top',
-                }],
+                  xaxis=dict(
+                    title='Longitude',  # Title of the X-axis
+                    titlefont=dict(
+                        size=14,  
+                        family='Montserrat',  
+                        color='black'  
+                    ),
+                     showgrid=True,
+                    gridcolor='#cb58fc',
+                    gridwidth=0.2,
+                ),
+                yaxis=dict(
+                    title='Latitude',  # Title of the Y-axis
+                    titlefont=dict(
+                        size=14,  
+                        family='Montserrat', 
+                        color='black' 
+                    ),
+                     showgrid=True,
+                    gridcolor='#cb58fc',
+                    gridwidth=0.2,
+                ),
+                updatemenus=[
+                    {
+                        'buttons': [
+                            {
+                                'args': [None, {'frame': {'duration': 100, 'redraw': True}, 'fromcurrent': True}],
+                                'label': 'Find Shortest Path',
+                                'method': 'animate',
+                            }
+                        ],
+                        'x': 0.896,  # Position at the right edge of the plot
+                        'xanchor': 'left',  # Anchor the button to the right
+                        'yanchor': 'bottom',  # Anchor the button to the top
+                        'type': 'buttons',  # Ensure it's a button type menu
+                    }
+                ],
                 # yaxis=dict(range=[min(node_y)-0.005, max(node_y)+0.005]),
                 # xaxis=dict(range=[min(node_x)-0.005, max(node_x)+0.005]),
+                plot_bgcolor=BACKGROUND_COLOUR,  # Set the background color of the plot area
+                paper_bgcolor=BACKGROUND_COLOUR, 
+                height = 720
+               
             ),
             frames=frames
         )
+    # Update graph with new locations (button not clicked)
     elif node_y:
         # If no play button click, return a static figure with just the nodes
         #updated_fig = go.Figure(data=[node_trace])
         updated_fig  = go.Figure(
             data=[node_trace],
             layout=go.Layout(
-                updatemenus=[{
-                    'buttons': [
+                xaxis=dict(
+                    title='Longitude',  # Title of the X-axis
+                    titlefont=dict(
+                        size=14,  
+                        family='Montserrat',  
+                        color='black'  
+                    ),
+                     showgrid=True,
+                    gridcolor='#cb58fc',
+                    gridwidth=0.2,
+                ),
+                yaxis=dict(
+                    title='Latitude',  # Title of the Y-axis
+                    titlefont=dict(
+                        size=14,  
+                        family='Montserrat', 
+                        color='black' 
+                    ),
+                     showgrid=True,
+                    gridcolor='#cb58fc',
+                    gridwidth=0.2,
+                ),
+                updatemenus=[
                         {
-                            'args': [None, {'frame': {'duration': 1000, 'redraw': True}, 'fromcurrent': True}],
-                            'label': 'Play',
-                            'method': 'animate',
-                        },
-                        {
-                            'args': [[None], {'frame': {'duration': 0, 'redraw': True}, 'mode': 'immediate', 'transition': {'duration': 0}}],
-                            'label': 'Pause',
-                            'method': 'animate',
-                        },
+                            'buttons': [
+                                {
+                                    'args': [None, {'frame': {'duration': 100, 'redraw': True}, 'fromcurrent': True}],
+                                    'label': 'Find Shortest Path',
+                                    'method': 'animate',
+                                }
+                            ],
+                            'x': 0.896,  # Position at the right edge of the plot
+                            'xanchor': 'left',  # Anchor the button to the right
+                            'yanchor': 'bottom',  # Anchor the button to the top
+                            'type': 'buttons',  # Ensure it's a button type menu
+                        }
                     ],
-                    #controls the appearance and position of the animation buttons 
-                    'direction': 'left',
-                    'pad': {'r': 10, 't': 87},
-                    'showactive': False,
-                    'type': 'buttons',
-                    'x': 0.1,
-                    'xanchor': 'right',
-                    'y': 0,
-                    'yanchor': 'top',
-                }],
                 # yaxis=dict(range=[min(node_y)-0.005, max(node_y)+0.005]),
                 # xaxis=dict(range=[min(node_x)-0.005, max(node_x)+0.005]),
+                plot_bgcolor=BACKGROUND_COLOUR,  # Set the background color of the plot area
+                paper_bgcolor=BACKGROUND_COLOUR, 
+                # height = 720
             ),
             frames=[]
         )
+    # No button click, one or no locations
     else:
-        updated_fig = go.Figure(frames=[])
+        updated_fig = go.Figure(
+            layout=go.Layout(
+                plot_bgcolor=BACKGROUND_COLOUR, 
+                paper_bgcolor=BACKGROUND_COLOUR,
+                  xaxis=dict(
+                    title='Longitude',  # Title of the X-axis
+                    titlefont=dict(
+                        size=14,  
+                        family='Montserrat',  
+                        color='black'  
+                    ),
+                     showgrid=True,
+                    gridcolor='#cb58fc',
+                    gridwidth=0.2,
+                ),
+                
+                yaxis=dict(
+                    title='Latitude',  # Title of the Y-axis
+                    titlefont=dict(
+                        size=14,  
+                        family='Montserrat', 
+                        color='black' 
+                    ),
+                     showgrid=True,
+                    gridcolor='#cb58fc',
+                    gridwidth=0.2,
+                ),
+                
+            ),
+            frames=[])
 
     
     return updated_fig, message
 
 # Run the app
 if __name__ == '__main__':
-    app.run_server(debug=True)
+        app.run_server(debug=False, dev_tools_ui=False, dev_tools_props_check=False)
