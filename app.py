@@ -103,6 +103,8 @@ def create_edge_trace(path):
 
 # Initialize the app
 app = dash.Dash(__name__)
+server=app.server
+
 
 
 
@@ -146,11 +148,12 @@ fig = go.Figure(
     frames=[]
 )
 
-
-
+# Set title in tab
+app.title = 'GenePath'
 
 # Define the layout for Dash
 app.layout = html.Div([
+
       # Link to Google Fonts (example: Roboto font)
     html.Link(
         href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;700&display=swap", 
