@@ -105,6 +105,7 @@ def create_edge_trace(path):
 app = dash.Dash(__name__)
 
 
+
 # Create an empty figure for initial setup
 fig = go.Figure(
     data=[],
@@ -185,6 +186,9 @@ app.layout = html.Div([
     ),
 ], style={'background':BACKGROUND_COLOUR,'height':'100vh','width':'100vw'})
 
+# Save the Dash app layout as HTML
+with open('index.html', 'w') as f:
+    f.write(app.index())  # This writes the app's HTML output to a file
 
 
 # Define the callback to update the graph

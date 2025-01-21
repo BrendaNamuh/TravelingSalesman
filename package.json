@@ -2,5 +2,11 @@
   "dependencies": {
     "cmdk": "^1.0.4",
     "react-graph-vis": "^1.0.7"
+  },
+  "devDependencies": {
+    "gh-pages": "^6.3.0"
   }
+
+
 }
+
