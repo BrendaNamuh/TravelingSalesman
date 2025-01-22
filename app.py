@@ -1,4 +1,4 @@
-from dash import Dash, dcc, html, dash,  Input, Output
+from dash import Dash, dcc, html, dash,  Input, Output, State
 import plotly.graph_objects as go
 import googlemaps
 from genetic_algorithm import run_gen_algo 
@@ -11,13 +11,14 @@ GOOGLE_API_KEY = "AIzaSyBhzRSUol2dYgsnyjxixu7XIyQEqi4KaXY"
 
 # Google Maps API client
 gmaps = googlemaps.Client(key=GOOGLE_API_KEY)
-LOCATIONS = []
-POSTAL_CODES = []
+
+# memory['locations'] = []
+# memory['postal_codes'] = []
 
 # Initial empty lists for nodes and edges
-node_x = []
-node_y = []
-node_labels = []
+# memory['node_x'] = []
+# memory['node_y'] = []
+# memory['node_labels'] = []
 
 
 # Function to get latitude and longitude from postal code
@@ -30,40 +31,40 @@ def get_coordinates_from_postal_code(postal_code):
     return None, None
 
 # Create a function to add nodes dynamically based on postal code
-def add_node(postal_code):
+def add_node(postal_code,memory):
     latitude, longitude = get_coordinates_from_postal_code(postal_code)
-    if latitude and longitude and postal_code not in POSTAL_CODES:
-        POSTAL_CODES.append(postal_code)
-        LOCATIONS.append([longitude,latitude,postal_code])
-        node_x.append(longitude)
-        node_y.append(latitude)
-        node_labels.append(postal_code)
+    if latitude and longitude and postal_code not in memory['postal_codes']:
+        memory['postal_codes'].append(postal_code)
+        memory['locations'].append([longitude,latitude,postal_code])
+        memory['node_x'].append(longitude)
+        memory['node_y'].append(latitude)
+        memory['node_labels'].append(postal_code)
         return True
     return False
 
 # Create the node trace (dynamic, based on nodes added)
-def create_node_trace():
+def create_node_trace(memory):
     node_colors = ['red']
-    if  node_x:
-        node_colors = ['blue' for i in range(len(node_x))]  # Default color for all nodes
+    if  memory['node_x']:
+        node_colors = ['blue' for i in range(len(memory['node_x']))]  # Default color for all nodes
         print('node_colors: ',node_colors)
         node_colors[0] = 'red'  # Highlight the first node with a different value
-    print('Current locations: ',LOCATIONS)
+    print('Current LOCATIONS: ',memory['locations'])
     return go.Scatter(
-        x=node_x,
-        y=node_y,
+        x=memory['node_x'],
+        y=memory['node_y'],
         mode='markers+text',
         marker=dict(
             symbol='star', # square, star, cross
             size=10,
             color= node_colors,
         ),
-        text=node_labels,  # Node labels
+        text=memory['node_labels'],  # Node labels
         textposition="bottom center",
     )
 
 # Create edge trace (arrows between nodes)
-def create_edge_trace(path):
+def create_edge_trace(path,memory):
     edge_x = []
     edge_y = []
     annotations = []  # List to hold annotations for arrows
@@ -73,8 +74,8 @@ def create_edge_trace(path):
             continue
         # print('Curent Path: ',path)
         ending_pos = path[i +1] 
-        x0, y0,_ = LOCATIONS[path[i]]  # Start node position
-        x1, y1,_ = LOCATIONS[ending_pos]  # End node position
+        x0, y0,_ = memory['locations'][path[i]]  # Start node position
+        x1, y1,_ = memory['locations'][ending_pos]  # End node position
         edge_x.append(x0)
         edge_x.append(x1)
         edge_y.append(y0)
@@ -160,7 +161,7 @@ app.layout = html.Div([
     ),
    
     html.H1("GenePath - Evolving the Shortest Route", style={'textAlign': 'center','border':'solid 2px transparent','width':'fit-content','z-index': '2','position':'absolute','margin-left':'5%'}),
-    html.P("Find the shortest path between inserted locations using a genetic algorithm.", style={'width':'20%','textAlign': 'center','border':'solid 2px transparent','width':'fit-content','z-index': '2','position':'absolute','margin-left':'5%','top':'7%','font-weight':'2em',}),
+    html.P("Find the shortest path between inserted memory['locations'] using a genetic algorithm.", style={'width':'20%','textAlign': 'center','border':'solid 2px transparent','width':'fit-content','z-index': '2','position':'absolute','margin-left':'5%','top':'7%','font-weight':'2em',}),
     # Text beneath
     html.Div(id='search-output', style={'padding': '10px','border':'solid transparent 2px','position':'absolute','bottom':'-10px','z-index':'2','left':'50%','transform':'translate(-50%,-50%)'}),
     # Search Bar
@@ -171,6 +172,7 @@ app.layout = html.Div([
             type='text',
             placeholder='Enter a postal code',
             debounce=True,
+            autoComplete='off',
             # value='',
             style={'width': '40%','border':'solid black 2px', 'margin-left':'100px','padding': '10px','border':'solid black 1px', 'background':BACKGROUND_COLOUR}
         ),
@@ -186,36 +188,53 @@ app.layout = html.Div([
         style={'height': '720px','width':'101%','position': 'absolute', 'top':'3%','z-index': '1'},
         config={'staticPlot':True, }
     ),
+    dcc.Store(id='memory', data={
+    'postal_codes': [],
+    'locations': [],
+    'node_x': [],
+    'node_y': [],
+    'node_labels': []
+})
 ], style={'background':BACKGROUND_COLOUR,'height':'100vh','width':'100vw'})
 
 
 # Define the callback to update the graph
 @app.callback(
     [Output('network-graph', 'figure'),
-     Output('search-output', 'children')],
+     Output('search-output', 'children'),
+     Output('memory', 'data')],
     [Input('search-bar', 'value'),
-    Input('network-graph', 'relayoutData'),
-    ]
-    )
+     Input('network-graph', 'relayoutData')],
+    [State('memory', 'data')]
+)
 
 
-def update_graph(value,relayoutData):
+def update_graph(value,relayoutData,memory):
     print(f'Callback Running...\nValue: {value}\nRelayoutData: {relayoutData}')
+    
+    if not memory:
+        memory = {
+            'postal_codes': [],
+            'locations': [],
+            'node_x': [],
+            'node_y': [],
+            'node_labels': []
+        }
     message = ""
-    global POSTAL_CODES, LOCATIONS, node_x, node_y, node_labels 
+    #global memory['postal_codes'], memory['locations'], memory['node_x'], memory['node_y'], memory['node_labels'] 
 
     # On page refresh
     if not value: 
-        POSTAL_CODES = []
-        LOCATIONS = []
-        node_x = []
-        node_y = []
-        node_labels = []
-        return fig,''
+        memory['postal_codes'] = []
+        memory['locations'] = []
+        memory['node_x'] = []
+        memory['node_y'] = []
+        memory['node_labels'] = []
+        return fig,'',memory
     
     value = value.upper().replace(" ", "")
     if value:
-        added = add_node(value)
+        added = add_node(value,memory)
         if added:
             message = f"Location '{value}' added."
         else:
@@ -224,25 +243,25 @@ def update_graph(value,relayoutData):
         message = ""
 
     # Create node trace
-    node_trace = create_node_trace()
+    node_trace = create_node_trace(memory)
 
     # Create edge trace
     frames = []
     
     # 'Find path' is clicked and the requirement to execute the genetic algo is satisfied
-    if relayoutData and len(node_y)>1:
-        sorted_paths = run_gen_algo(LOCATIONS)
+    if relayoutData and len(memory['node_y'])>1:
+        sorted_paths = run_gen_algo(memory['locations'])
         #sorted_paths = [[0, 3, 1, 2], [2, 1, 3, 0], [0, 1, 2, 3]]
         print('sorted_paths: ',sorted_paths)
-        print(LOCATIONS)
+        print(memory['locations'])
 
         for path in sorted_paths:
             print('Current Path: ', path)
             # edges_subset = predefined_edges[:i]
-            edge_trace, annotations = create_edge_trace(path)
+            edge_trace, annotations = create_edge_trace(path,memory)
             print('Edge Trace X:', edge_trace['x'])
             print('Edge Trace Y:', edge_trace['y'])
-            postal_path = [LOCATIONS[pos][2] for pos in path]
+            postal_path = [memory['locations'][pos][2] for pos in path]
             postal_path = ' -> '.join(postal_path)
             # Add edges progressively as frames
             frames.append(go.Frame(
@@ -333,8 +352,8 @@ def update_graph(value,relayoutData):
             ),
             frames=frames
         )
-    # Update graph with new locations (button not clicked)
-    elif node_y:
+    # Update graph with new memory['locations'] (button not clicked)
+    elif memory['node_y']:
         # If no play button click, return a static figure with just the nodes
         #updated_fig = go.Figure(data=[node_trace])
         updated_fig  = go.Figure(
@@ -382,7 +401,7 @@ def update_graph(value,relayoutData):
             ),
             frames=[]
         )
-    # No button click, one or no locations
+    # No button click, one or no memory['locations']
     else:
         updated_fig = go.Figure(
             layout=go.Layout(
@@ -416,7 +435,7 @@ def update_graph(value,relayoutData):
             frames=[])
 
     
-    return updated_fig, message
+    return updated_fig, message,memory
 
 # Run the app
 if __name__ == '__main__':
