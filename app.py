@@ -107,7 +107,6 @@ server=app.server
 
 
 
-
 # Create an empty figure for initial setup
 fig = go.Figure(
     data=[],
@@ -161,7 +160,7 @@ app.layout = html.Div([
     ),
    
     html.H1("GenePath - Evolving the Shortest Route", style={'textAlign': 'center','border':'solid 2px transparent','width':'fit-content','z-index': '2','position':'absolute','margin-left':'5%'}),
-    html.P("Find the shortest route using a genetic algorithm. (Note: The red star is the departing location)", style={'width':'20%','textAlign': 'center','border':'solid 2px transparent','width':'fit-content','z-index': '2','position':'absolute','margin-left':'5%','top':'7%','font-weight':'2em',}),
+    html.P("Find the shortest path between inserted locations using a genetic algorithm.", style={'width':'20%','textAlign': 'center','border':'solid 2px transparent','width':'fit-content','z-index': '2','position':'absolute','margin-left':'5%','top':'7%','font-weight':'2em',}),
     # Text beneath
     html.Div(id='search-output', style={'padding': '10px','border':'solid transparent 2px','position':'absolute','bottom':'-10px','z-index':'2','left':'50%','transform':'translate(-50%,-50%)'}),
     # Search Bar
@@ -172,7 +171,7 @@ app.layout = html.Div([
             type='text',
             placeholder='Enter a postal code',
             debounce=True,
-            value='',
+            # value='',
             style={'width': '40%','border':'solid black 2px', 'margin-left':'100px','padding': '10px','border':'solid black 1px', 'background':BACKGROUND_COLOUR}
         ),
         
@@ -201,8 +200,19 @@ app.layout = html.Div([
 
 
 def update_graph(value,relayoutData):
-    print(f'Callback Running.\nValue: {value}\nRelayoutData: {relayoutData}')
+    print(f'Callback Running...\nValue: {value}\nRelayoutData: {relayoutData}')
     message = ""
+    global POSTAL_CODES, LOCATIONS, node_x, node_y, node_labels 
+
+    # On page refresh
+    if not value: 
+        POSTAL_CODES = []
+        LOCATIONS = []
+        node_x = []
+        node_y = []
+        node_labels = []
+        return fig,''
+    
     value = value.upper().replace(" ", "")
     if value:
         added = add_node(value)
@@ -219,7 +229,7 @@ def update_graph(value,relayoutData):
     # Create edge trace
     frames = []
     
-    # 'Find path' is clicked and the requirement to exexecute the gen. algo is satisfied
+    # 'Find path' is clicked and the requirement to execute the genetic algo is satisfied
     if relayoutData and len(node_y)>1:
         sorted_paths = run_gen_algo(LOCATIONS)
         #sorted_paths = [[0, 3, 1, 2], [2, 1, 3, 0], [0, 1, 2, 3]]
@@ -233,7 +243,7 @@ def update_graph(value,relayoutData):
             print('Edge Trace X:', edge_trace['x'])
             print('Edge Trace Y:', edge_trace['y'])
             postal_path = [LOCATIONS[pos][2] for pos in path]
-            postal_path = ' --> '.join(postal_path)
+            postal_path = ' -> '.join(postal_path)
             # Add edges progressively as frames
             frames.append(go.Frame(
                 data=[node_trace,edge_trace],
@@ -271,13 +281,9 @@ def update_graph(value,relayoutData):
                     )
                     
                 ),
-                # name=f'Frame {i}'
             ))
         
       
-        
-        # min_y = min(y_values) if node_y else 0
-        # max_y = max(y_values) if node_y else 4
         # Final figure with frames and animation settings
         updated_fig = go.Figure(
             data=[node_trace],
@@ -319,8 +325,7 @@ def update_graph(value,relayoutData):
                         'type': 'buttons',  # Ensure it's a button type menu
                     }
                 ],
-                # yaxis=dict(range=[min(node_y)-0.005, max(node_y)+0.005]),
-                # xaxis=dict(range=[min(node_x)-0.005, max(node_x)+0.005]),
+
                 plot_bgcolor=BACKGROUND_COLOUR,  # Set the background color of the plot area
                 paper_bgcolor=BACKGROUND_COLOUR, 
                 height = 720
@@ -372,11 +377,8 @@ def update_graph(value,relayoutData):
                             'type': 'buttons',  # Ensure it's a button type menu
                         }
                     ],
-                # yaxis=dict(range=[min(node_y)-0.005, max(node_y)+0.005]),
-                # xaxis=dict(range=[min(node_x)-0.005, max(node_x)+0.005]),
                 plot_bgcolor=BACKGROUND_COLOUR,  # Set the background color of the plot area
                 paper_bgcolor=BACKGROUND_COLOUR, 
-                # height = 720
             ),
             frames=[]
         )
