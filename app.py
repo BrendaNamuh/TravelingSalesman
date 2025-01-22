@@ -161,7 +161,7 @@ app.layout = html.Div([
     ),
    
     html.H1("GenePath - Evolving the Shortest Route", style={'textAlign': 'center','border':'solid 2px transparent','width':'fit-content','z-index': '2','position':'absolute','margin-left':'5%'}),
-    html.P("Find the shortest path between inserted memory['locations'] using a genetic algorithm.", style={'width':'20%','textAlign': 'center','border':'solid 2px transparent','width':'fit-content','z-index': '2','position':'absolute','margin-left':'5%','top':'7%','font-weight':'2em',}),
+    html.P("Discover the shortest route among the entered locations using a genetic algorithm.", style={'width':'20%','textAlign': 'center','border':'solid 2px transparent','width':'fit-content','z-index': '2','position':'absolute','margin-left':'5%','top':'7%','font-weight':'2em',}),
     # Text beneath
     html.Div(id='search-output', style={'padding': '10px','border':'solid transparent 2px','position':'absolute','bottom':'-10px','z-index':'2','left':'50%','transform':'translate(-50%,-50%)'}),
     # Search Bar
